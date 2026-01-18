@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # PHP-FPM + Nginx (serversideup)
+  bedrock:
+    image: serversideup/php:8.3-fpm-nginx
+    restart: always
+    container_name: bedrock_app
+    
+    volumes:
+      - .:/var/www/html:ro  # Read-only code
+      - uploads:/var/www/html/web/app/uploads  # Persistent
+    
+    environment:
+      # Coolify Traefik labels (auto SSL/proxy)
+      - VIRTUAL_HOST=yourdomain.com
+      - LETSENCRYPT_HOST=yourdomain.com
+      
+      # PHP config
+      - PHP_MEMORY_LIMIT=512M
+      - PHP_POST_MAX_SIZE=100M
+      - PHP_UPLOAD_MAX_FILESIZE=100M
+      - PHP_OPCACHE_ENABLE=1
+      
+      # MySQL host (Docker link)
+      - DB_HOST=db
+    
+    env_file:
+      - .env
+    
+    depends_on:
+      - db
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # MariaDB persistent DB
+  db:
+    image: mariadb:11
+    restart: always
+    container_name: bedrock_db
+    
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    
+    volumes:
+      - db_data:/var/lib/mysql
+    
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  uploads:
+  db_data:
+
